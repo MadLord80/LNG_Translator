@@ -23,8 +23,8 @@
         <ListView x:Name="stringsView" Grid.Row="3" Grid.ColumnSpan="2" Style="{StaticResource ListViewWithGridViewStyle}">
             <ListView.View>
                 <GridView ColumnHeaderContainerStyle="{StaticResource GridViewColumnHeaderStyle}">
-                    <GridViewColumn Header="Original" Width="200" DisplayMemberBinding="{Binding OrigText}"/>
-                    <GridViewColumn Header="Translate"/>
+                    <GridViewColumn Header="Original" Width="400" DisplayMemberBinding="{Binding OrigText}"/>
+                    <GridViewColumn Header="Translate" DisplayMemberBinding="{Binding TransText}"/>
                 </GridView>
             </ListView.View>
         </ListView>

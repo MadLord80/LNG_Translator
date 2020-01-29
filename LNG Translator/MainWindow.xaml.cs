@@ -5,6 +5,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Text;
 using System.Linq;
+using System.Windows.Controls;
 
 namespace LNG_Translator
 {
@@ -51,20 +52,21 @@ namespace LNG_Translator
                 }
 
                 fs.Position = 0x40;
-                //byte[] addr = new byte[4] { 0x00, 0x00, 0xff, 0xff };
                 byte[] addr = new byte[4] { 0xff, 0xff, 0x00, 0x00 };
                 byte[] endaddr = new byte[4] { 0x00, 0x00, 0x00, 0x00 };
                 byte[] bChar = new byte[2] { 0xff, 0xff };
                 byte[] bEndChar = new byte[2] { 0x00, 0x00 };
                 List<byte> bText = new List<byte>();
-                int maxTextLength = 512;
+                lngRows.Clear();
                 while (!addr.SequenceEqual(endaddr))
                 {
+                    bText.Clear();
                     fs.Read(addr, 0, 2);
                     long nextAddr = fs.Position;
                     fs.Position = 0x40 + BitConverter.ToUInt32(addr, 0) * 2;
                     fs.Read(bChar, 0, bChar.Length);
-                    while (maxTextLength > 0)
+                    int maxTextLength = 512;
+                    while (maxTextLength > 0 && fs.Position <= fs.Length - 1)
                     {
                         if (!bChar.SequenceEqual(bEndChar))
                         {
@@ -77,15 +79,49 @@ namespace LNG_Translator
                             break;
                         }
                     }
+                    if (fs.Position >= fs.Length - 1)
+                    {
+                        addr = endaddr;
+                    }
                     fs.Position = nextAddr;
 
                     string sText = Encoding.Unicode.GetString(bText.ToArray());
-                    bText.Clear();
                     lngRows.Add(new LNGRow(addr, sText));
                 }
 
+                ((GridView)stringsView.View).Columns[0].Header = "Original: (found " + lngRows.Count + " strings)";
                 stringsView.ItemsSource = lngRows;
                 stringsView.Items.Refresh();
+                AutoSizeColumns(stringsView.View as GridView);
+            }
+        }
+
+        private string ByteArrayToString(byte[] ba)
+        {
+            StringBuilder hex = new StringBuilder(ba.Length * 2);
+            foreach (byte b in ba)
+                hex.AppendFormat("{0:x2}", b);
+            return hex.ToString();
+        }
+
+        private void AutoSizeColumns(GridView gv)
+        {
+            if (gv != null)
+            {
+                foreach (var c in gv.Columns)
+                {
+                    // Code below was found in GridViewColumnHeader.OnGripperDoubleClicked() event handler (using Reflector)
+                    // i.e. it is the almost same code that is executed when the gripper is double clicked
+                    if (double.IsNaN(c.Width))
+                    {
+                        c.Width = c.ActualWidth;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                    c.Width = double.NaN;
+                }
             }
         }
 
