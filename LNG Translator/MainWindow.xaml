@@ -19,12 +19,20 @@
         </Grid.RowDefinitions>
         <Menu Height="30" VerticalAlignment="Top" Grid.Row="0" Grid.ColumnSpan="2">
             <MenuItem x:Name="openLNGFileButton" Header="Open *.LNG" Height="30" Width="78" Click="OpenLNGFileButton_Click"/>
+            <MenuItem x:Name="skipEmptyStringsButton" Header="Skip empty strings" Height="30" Width="126" IsCheckable="True" Click="SkipEmptyStringsButton_Click"/>
         </Menu>
-        <ListView x:Name="stringsView" Grid.Row="3" Grid.ColumnSpan="2" Style="{StaticResource ListViewWithGridViewStyle}">
+        <ListView x:Name="stringsView" Grid.Row="3" Grid.ColumnSpan="2" Style="{StaticResource ListViewWithGridViewStyle}" BorderThickness="1">
             <ListView.View>
                 <GridView ColumnHeaderContainerStyle="{StaticResource GridViewColumnHeaderStyle}">
                     <GridViewColumn Header="Original" Width="400" DisplayMemberBinding="{Binding OrigText}"/>
-                    <GridViewColumn Header="Translate" DisplayMemberBinding="{Binding TransText}"/>
+                    <!--<GridViewColumn Header="Translate" DisplayMemberBinding="{Binding TransText}">-->
+                    <GridViewColumn Header="Translate">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <!--<l:EditBox Height="25" Value="{Binding TransText}" />-->
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
                 </GridView>
             </ListView.View>
         </ListView>

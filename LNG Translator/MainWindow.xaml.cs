@@ -58,10 +58,11 @@ namespace LNG_Translator
                 byte[] bEndChar = new byte[2] { 0x00, 0x00 };
                 List<byte> bText = new List<byte>();
                 lngRows.Clear();
+
+                fs.Read(addr, 0, 2);
                 while (!addr.SequenceEqual(endaddr))
                 {
                     bText.Clear();
-                    fs.Read(addr, 0, 2);
                     long nextAddr = fs.Position;
                     fs.Position = 0x40 + BitConverter.ToUInt32(addr, 0) * 2;
                     fs.Read(bChar, 0, bChar.Length);
@@ -79,14 +80,17 @@ namespace LNG_Translator
                             break;
                         }
                     }
+
+                    //string sText = Encoding.GetEncoding(932).GetString(bText.ToArray());
+                    string sText = Encoding.Unicode.GetString(bText.ToArray());
+                    lngRows.Add(new LNGRow(addr, sText));
+
                     if (fs.Position >= fs.Length - 1)
                     {
                         addr = endaddr;
                     }
                     fs.Position = nextAddr;
-
-                    string sText = Encoding.Unicode.GetString(bText.ToArray());
-                    lngRows.Add(new LNGRow(addr, sText));
+                    fs.Read(addr, 0, 2);
                 }
 
                 ((GridView)stringsView.View).Columns[0].Header = "Original: (found " + lngRows.Count + " strings)";
@@ -96,12 +100,27 @@ namespace LNG_Translator
             }
         }
 
+        private void UpdateStringsView()
+        {
+            stringsView.ItemsSource = (this.skipEmptyStringsButton.IsChecked)
+                ? lngRows.Where(row => row.OrigText != "")
+                : lngRows;
+
+            stringsView.Items.Refresh();
+            AutoSizeColumns(stringsView.View as GridView);
+        }
+
         private string ByteArrayToString(byte[] ba)
         {
             StringBuilder hex = new StringBuilder(ba.Length * 2);
             foreach (byte b in ba)
                 hex.AppendFormat("{0:x2}", b);
             return hex.ToString();
+        }
+               
+        private void SkipEmptyStringsButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.UpdateStringsView();
         }
 
         private void AutoSizeColumns(GridView gv)
@@ -125,7 +144,31 @@ namespace LNG_Translator
             }
         }
 
-        public class LNGRow
+        //public class EditBox : Control
+        //{
+
+
+        //    protected override void OnMouseEnter(MouseEventArgs e)
+        //    {
+        //        base.OnMouseEnter(e);
+        //        if (!IsEditing && IsParentSelected)
+        //        {
+        //            _canBeEdit = true;
+        //        }
+        //    }
+
+
+        //    protected override void OnMouseLeave(MouseEventArgs e)
+        //    {
+        //        base.OnMouseLeave(e);
+        //        _isMouseWithinScope = false;
+        //        _canBeEdit = false;
+        //    }
+
+
+        //}
+
+        private class LNGRow
         {
             private byte[] offset;
             private string origText;
