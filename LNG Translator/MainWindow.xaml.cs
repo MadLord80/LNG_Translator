@@ -17,16 +17,59 @@ namespace LNG_Translator
         private string windowTitle = "LNG Translator";
         private readonly OpenFileDialog OpenFileDialog = new OpenFileDialog();
         private List<LNGRow> lngRows = new List<LNGRow>();
+        private readonly Dictionary<int, string> encodings = new Dictionary<int, string>
+        { { 1200, "1200: UTF-16 LE" }, { 932, "932: Shift-JIS" }, {0,"" } };
+        private int curEnc = 1200;
 
         public MainWindow()
         {
             InitializeComponent();
+
+            foreach (EncodingInfo enc in Encoding.GetEncodings())
+            {
+                if (enc.CodePage != 1200 && enc.CodePage != 932)
+                {
+                    encodings.Add(enc.CodePage, enc.CodePage + ": " + enc.DisplayName);
+                }
+            }
+            foreach (KeyValuePair<int, string> enc in encodings)
+            {
+                if (enc.Key == 0)
+                {
+                    Separator ms = new Separator();
+                    resEncMenuItem.Items.Add(ms);
+                    continue;
+                }
+                System.Windows.Controls.MenuItem mi = new System.Windows.Controls.MenuItem
+                {
+                    Header = enc.Value,
+                    Tag = enc.Key,
+                    IsCheckable = true
+                };
+                mi.Click += resEncMenuItem_Select;
+                if (enc.Key == this.curEnc) { mi.IsChecked = true; }
+                resEncMenuItem.Items.Add(mi);
+            }
 
             OpenFileDialog.Filter = "LNG files (*.LNG)|*.LNG|All files (*.*)|*.*";
 
             string version = System.Windows.Forms.Application.ProductVersion;
             this.windowTitle += " v." + version.Remove(version.Length - 2);
             MainWindowElement.Title = this.windowTitle;
+        }
+
+        private void resEncMenuItem_Select(object sender, RoutedEventArgs e)
+        {
+            int enc = Convert.ToInt32(((System.Windows.Controls.MenuItem)sender).Tag.ToString());
+            foreach (var item in resEncMenuItem.Items)
+            {
+                if (item.GetType() == typeof(Separator)) { continue; }
+                ((System.Windows.Controls.MenuItem)item).IsChecked =
+                    (((System.Windows.Controls.MenuItem)item).Tag == ((System.Windows.Controls.MenuItem)sender).Tag)
+                    ? true : false;
+            }
+            this.curEnc = enc;
+            this.UpdateStringsEncoding();
         }
 
         private void OpenLNGFileButton_Click(object sender, RoutedEventArgs e)
@@ -59,7 +102,15 @@ namespace LNG_Translator
                 List<byte> bText = new List<byte>();
                 lngRows.Clear();
 
-                fs.Read(addr, 0, 2);
+                int addrLength = 4;
+                fs.Read(addr, 0, addrLength);
+                // may be 4 bytes offset
+                if (addr[2] != 0 || addr[3] != 0)
+                {
+                    addrLength = 2;
+                    addr[2] = 0; addr[3] = 0;
+                    fs.Position -= 2;
+                }
                 while (!addr.SequenceEqual(endaddr))
                 {
                     bText.Clear();
@@ -81,16 +132,18 @@ namespace LNG_Translator
                         }
                     }
 
-                    //string sText = Encoding.GetEncoding(932).GetString(bText.ToArray());
-                    string sText = Encoding.Unicode.GetString(bText.ToArray());
-                    lngRows.Add(new LNGRow(addr, sText));
+                    string sText = Encoding.GetEncoding(this.curEnc).GetString(bText.ToArray());
+                    LNGRow lrow = new LNGRow(addr, sText);
+                    lrow.Encoding = curEnc;
+                    lrow.TransText = sText;
+                    lngRows.Add(lrow);
 
                     if (fs.Position >= fs.Length - 1)
                     {
                         addr = endaddr;
                     }
                     fs.Position = nextAddr;
-                    fs.Read(addr, 0, 2);
+                    fs.Read(addr, 0, addrLength);
                 }
 
                 ((GridView)stringsView.View).Columns[0].Header = "Original: (found " + lngRows.Count + " strings)";
@@ -98,6 +151,25 @@ namespace LNG_Translator
                 stringsView.Items.Refresh();
                 AutoSizeColumns(stringsView.View as GridView);
             }
+        }
+
+        private void TextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            System.Windows.Controls.TextBox tbox = (System.Windows.Controls.TextBox)sender;
+            LNGRow lrow = stringsView.SelectedItem as LNGRow;
+            lrow.TransText = tbox.Text;
+        }
+
+        private void UpdateStringsEncoding()
+        {
+            lngRows.ForEach((lrow) => {
+                lrow.OrigText = Encoding.GetEncoding(this.curEnc).GetString(Encoding.GetEncoding(lrow.Encoding).GetBytes(lrow.OrigText));
+                lrow.TransText = Encoding.GetEncoding(this.curEnc).GetString(Encoding.GetEncoding(lrow.Encoding).GetBytes(lrow.TransText));
+                lrow.Encoding = this.curEnc;
+            });
+            stringsView.ItemsSource = lngRows;
+            stringsView.Items.Refresh();
+            AutoSizeColumns(stringsView.View as GridView);
         }
 
         private void UpdateStringsView()
@@ -143,41 +215,24 @@ namespace LNG_Translator
                 }
             }
         }
-
-        //public class EditBox : Control
-        //{
-
-
-        //    protected override void OnMouseEnter(MouseEventArgs e)
-        //    {
-        //        base.OnMouseEnter(e);
-        //        if (!IsEditing && IsParentSelected)
-        //        {
-        //            _canBeEdit = true;
-        //        }
-        //    }
-
-
-        //    protected override void OnMouseLeave(MouseEventArgs e)
-        //    {
-        //        base.OnMouseLeave(e);
-        //        _isMouseWithinScope = false;
-        //        _canBeEdit = false;
-        //    }
-
-
-        //}
-
+        
         private class LNGRow
         {
             private byte[] offset;
             private string origText;
             private string transText;
+            private int encoding;
 
             public LNGRow(byte[] offset, string origText)
             {
                 this.offset = offset;
                 this.origText = origText;
+            }
+
+            public int Encoding
+            {
+                get { return this.encoding; }
+                set { this.encoding = value; }
             }
 
             public byte[] Offset
@@ -197,6 +252,11 @@ namespace LNG_Translator
                 get { return this.transText; }
                 set { this.transText = value; }
             }
+        }
+
+        private void StringsView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
         }
     }
 }

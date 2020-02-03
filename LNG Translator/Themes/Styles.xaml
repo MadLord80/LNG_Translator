@@ -129,7 +129,7 @@
     <Geometry x:Key="ComboBoxArrow">M-0,6 L-0,8 8,8 8,-0 6,-0 6,6 z</Geometry>
     <Geometry x:Key="ExpanderToggleButtonArrow">M5,-0 L9,5 1,5 z</Geometry>
     <!--#endregion-->
-    
+
     <!--#region FontStyle-->
     <Style TargetType="{x:Type TextBlock}">
         <Setter Property="FontFamily" Value="Calibri light"/>
