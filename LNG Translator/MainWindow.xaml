@@ -19,17 +19,17 @@
         </Grid.RowDefinitions>
         <Menu Height="30" VerticalAlignment="Top" Grid.Row="0" Grid.ColumnSpan="2">
             <MenuItem x:Name="openLNGFileButton" Header="Open *.LNG" Height="30" Width="78" Click="OpenLNGFileButton_Click"/>
-            <MenuItem x:Name="skipEmptyStringsButton" Header="Skip empty strings" Height="30" Width="126" IsCheckable="True" Click="SkipEmptyStringsButton_Click"/>
+            <MenuItem x:Name="skipEmptyStringsButton" Header="Skip empty strings" Height="30" Width="126" IsCheckable="True" IsChecked="True" Click="SkipEmptyStringsButton_Click"/>
             <MenuItem x:Name="resEncMenuItem" Header="Encoding" Height="30"/>
         </Menu>
-        <ListView x:Name="stringsView" Grid.Row="3" Grid.ColumnSpan="2" Style="{StaticResource ListViewWithGridViewStyle}" BorderThickness="1" SelectionChanged="StringsView_SelectionChanged">
+        <ListView x:Name="stringsView" Grid.Row="3" Grid.ColumnSpan="2" Style="{StaticResource ListViewWithGridViewStyle}" BorderThickness="1">
             <ListView.View>
                 <GridView ColumnHeaderContainerStyle="{StaticResource GridViewColumnHeaderStyle}">
                     <GridViewColumn Header="Original" Width="400" DisplayMemberBinding="{Binding OrigText}"/>
-                    <GridViewColumn Header="Translate" Width="200">
+                    <GridViewColumn Header="Translate">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBox IsReadOnly="False" Text="{Binding TransText}" Width="Auto" TextChanged="TextBox_TextChanged"/>
+                                <TextBox IsReadOnly="True" Text="{Binding TransText}" Width="Auto" TextChanged="TextBox_TextChanged" SelectionChanged="TextBox_SelectionChanged"/>
                             </DataTemplate>
                         </GridViewColumn.CellTemplate>
                     </GridViewColumn>

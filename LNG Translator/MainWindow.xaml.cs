@@ -147,7 +147,7 @@ namespace LNG_Translator
                 }
 
                 ((GridView)stringsView.View).Columns[0].Header = "Original: (found " + lngRows.Count + " strings)";
-                stringsView.ItemsSource = lngRows;
+                stringsView.ItemsSource = lngRows.Where(row => row.OrigText != "");
                 stringsView.Items.Refresh();
                 AutoSizeColumns(stringsView.View as GridView);
             }
@@ -156,8 +156,15 @@ namespace LNG_Translator
         private void TextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             System.Windows.Controls.TextBox tbox = (System.Windows.Controls.TextBox)sender;
-            LNGRow lrow = stringsView.SelectedItem as LNGRow;
+            ContentPresenter cp = (ContentPresenter)tbox.TemplatedParent;
+            LNGRow lrow = (LNGRow)cp.Content;
             lrow.TransText = tbox.Text;
+        }
+
+        private void TextBox_SelectionChanged(object sender, RoutedEventArgs e)
+        {
+            System.Windows.Controls.TextBox txtbox = (System.Windows.Controls.TextBox)sender;
+            txtbox.IsReadOnly = false;
         }
 
         private void UpdateStringsEncoding()
@@ -167,7 +174,9 @@ namespace LNG_Translator
                 lrow.TransText = Encoding.GetEncoding(this.curEnc).GetString(Encoding.GetEncoding(lrow.Encoding).GetBytes(lrow.TransText));
                 lrow.Encoding = this.curEnc;
             });
-            stringsView.ItemsSource = lngRows;
+            stringsView.ItemsSource = (this.skipEmptyStringsButton.IsChecked)
+                ? lngRows.Where(row => row.OrigText != "")
+                : lngRows;
             stringsView.Items.Refresh();
             AutoSizeColumns(stringsView.View as GridView);
         }
@@ -252,11 +261,6 @@ namespace LNG_Translator
                 get { return this.transText; }
                 set { this.transText = value; }
             }
-        }
-
-        private void StringsView_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-
         }
     }
 }
