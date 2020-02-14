@@ -91,6 +91,12 @@ namespace LNG_Translator
             System.Windows.Controls.MenuItem exportItem = new System.Windows.Controls.MenuItem() { Header = "Google Translate" };
             exportItem.Click += TranslateContextButtonClick;
             context.Items.Add(exportItem);
+            System.Windows.Controls.MenuItem copyItem = new System.Windows.Controls.MenuItem() { Header = "Copy" };
+            copyItem.Click += CopyContextButtonClick;
+            context.Items.Add(copyItem);
+            System.Windows.Controls.MenuItem offsetItem = new System.Windows.Controls.MenuItem() { Header = "Offset" };
+            offsetItem.Click += OffsetContextButtonClick;
+            context.Items.Add(offsetItem);
             stringsView.ContextMenu = context;
 
             searchTextBox.GotFocus += RemovePlaceholder;
@@ -130,9 +136,56 @@ namespace LNG_Translator
         {
             LNGRow lrow = (LNGRow)stringsView.SelectedItem;
             if (lrow == null) { return; }
-            lrow.TransText = this.GoogleTranslate(lrow.OrigText);
+            //lrow.TransText = this.GoogleTranslate(lrow.OrigText);
             stringsView.Items.Refresh();
             AutoSizeColumns(stringsView.View as GridView);
+        }
+
+        private void CopyContextButtonClick(object sender, RoutedEventArgs e)
+        {
+            LNGRow lrow = (LNGRow)stringsView.SelectedItem;
+            if (lrow == null) { return; }
+            System.Windows.Clipboard.SetText(lrow.OrigText);
+
+            //string allText = ""; int cnt = 0;
+            //for (int i = 0; i < lngRows.Count; i++)
+            //{
+            //    if (lngRows[i].OrigText != "")
+            //    {
+            //        allText += lngRows[i].OrigText + "\n";
+            //        cnt++;
+            //    }
+            //}
+            //System.Windows.MessageBox.Show("Copied " + cnt + " strings");
+            //System.Windows.Clipboard.SetText(allText);
+
+            //string stringsFileName = "origs.txt";
+            //byte[] endLine = new byte[] { 0x0d, 0x0a };
+            //byte[] BOM = new byte[] { 0xef, 0xbb, 0xbf };
+            //using (FileStream fs = new FileStream(stringsFileName, FileMode.Create, FileAccess.ReadWrite))
+            //{
+            //    fs.Write(BOM, 0, BOM.Length);
+            //    for (int i = 0; i < lngRows.Count; i++)
+            //    {
+            //        if (lngRows[i].OrigText != "")
+            //        {
+            //            byte[] istr = Encoding.GetEncoding(curEnc).GetBytes(lngRows[i].OrigText);
+            //            byte[] str = Encoding.Convert(Encoding.GetEncoding(curEnc), Encoding.UTF8, istr);
+            //            fs.Write(str, 0, str.Length);
+            //            fs.Write(endLine, 0, endLine.Length);
+            //        }
+            //    }
+            //}
+            //System.Windows.MessageBox.Show("Done!");
+        }
+
+        private void OffsetContextButtonClick(object sender, RoutedEventArgs e)
+        {
+            LNGRow lrow = (LNGRow)stringsView.SelectedItem;
+            if (lrow == null) { return; }
+            string offset = lrow.Offset.Select(b => b.ToString("X2")).Aggregate((s1, s2) => s1 + s2);
+            System.Windows.MessageBox.Show(offset);
+            Console.WriteLine(lrow.Offset);
         }
 
         private void langFrom_Select(object sender, RoutedEventArgs e)
@@ -223,18 +276,22 @@ namespace LNG_Translator
                         }
                     }
 
-                    string sText = Encoding.GetEncoding(this.curEnc).GetString(bText.ToArray());
-                    LNGRow lrow = new LNGRow(addr, sText);
-                    lrow.Encoding = curEnc;
-                    lrow.TransText = sText;
+                    //string sText = Encoding.GetEncoding(this.curEnc).GetString(bText.ToArray());
+                    //LNGRow lrow = new LNGRow(addr, sText)
+                    LNGRow lrow = new LNGRow(addr, bText.ToArray())
+                    {
+                        Encoding = curEnc,
+                        //TransText = sText
+                        TransTextBytes = bText.ToArray()
+                    };
                     lngRows.Add(lrow);
 
+                    fs.Position = nextAddr;
+                    fs.Read(addr, 0, addrLength);
                     if (fs.Position >= fs.Length - 1)
                     {
                         addr = endaddr;
                     }
-                    fs.Position = nextAddr;
-                    fs.Read(addr, 0, addrLength);
                 }
 
                 ((GridView)stringsView.View).Columns[0].Header = "Original: (found " + lngRows.Count + " strings)";
@@ -272,8 +329,8 @@ namespace LNG_Translator
         private void UpdateStringsEncoding()
         {
             lngRows.ForEach((lrow) => {
-                lrow.OrigText = Encoding.GetEncoding(this.curEnc).GetString(Encoding.GetEncoding(lrow.Encoding).GetBytes(lrow.OrigText));
-                lrow.TransText = Encoding.GetEncoding(this.curEnc).GetString(Encoding.GetEncoding(lrow.Encoding).GetBytes(lrow.TransText));
+                //lrow.OrigText = Encoding.GetEncoding(this.curEnc).GetString(Encoding.GetEncoding(lrow.Encoding).GetBytes(lrow.OrigText));
+                //lrow.TransText = Encoding.GetEncoding(this.curEnc).GetString(Encoding.GetEncoding(lrow.Encoding).GetBytes(lrow.TransText));
                 lrow.Encoding = this.curEnc;
             });
             stringsView.ItemsSource = (this.skipEmptyStringsButton.IsChecked)
@@ -489,14 +546,16 @@ namespace LNG_Translator
         private class LNGRow
         {
             private byte[] offset;
-            private string origText;
-            private string transText;
+            private byte[] origText;
+            private byte[] transText;
             private int encoding;
 
-            public LNGRow(byte[] offset, string origText)
+            public LNGRow(byte[] offset, byte[] origText)
             {
-                this.offset = offset;
-                this.origText = origText;
+                this.offset = new byte[offset.Length];
+                offset.CopyTo(this.offset, 0);
+                this.origText = new byte[origText.Length];
+                origText.CopyTo(this.origText, 0);
             }
 
             public int Encoding
@@ -513,14 +572,30 @@ namespace LNG_Translator
 
             public string OrigText
             {
+                get { return System.Text.Encoding.GetEncoding(this.encoding).GetString(this.origText); }
+                //set { this.origText = value; }
+            }
+
+            public byte[] OrigTextBytes
+            {
                 get { return this.origText; }
                 set { this.origText = value; }
+
+            }
+
+            public byte[] TransTextBytes
+            {
+                get { return this.transText; }
+                set {
+                    this.transText = new byte[value.Length];
+                    value.CopyTo(this.transText, 0);
+                }
             }
 
             public string TransText
             {
-                get { return this.transText; }
-                set { this.transText = value; }
+                get { return System.Text.Encoding.GetEncoding(this.encoding).GetString(this.transText); }
+                set { this.transText = System.Text.Encoding.GetEncoding(this.encoding).GetBytes(value); }
             }
         }
     }
