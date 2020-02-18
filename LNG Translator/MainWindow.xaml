@@ -31,6 +31,7 @@
         <ListView x:Name="stringsView" Grid.Row="3" Grid.ColumnSpan="2" Style="{StaticResource ListViewWithGridViewStyle}" BorderThickness="1">
             <ListView.View>
                 <GridView ColumnHeaderContainerStyle="{StaticResource GridViewColumnHeaderStyle}">
+                    <GridViewColumn DisplayMemberBinding="{Binding Id}" Header="Id" Width="30"/>
                     <GridViewColumn Header="Original" Width="400" DisplayMemberBinding="{Binding OrigText}"/>
                     <GridViewColumn Header="Translate">
                         <GridViewColumn.CellTemplate>
