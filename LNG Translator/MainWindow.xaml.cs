@@ -21,6 +21,7 @@ namespace LNG_Translator
         private string windowTitle = "LNG Translator";
         private readonly OpenFileDialog OpenFileDialog = new OpenFileDialog();
         private string FileName;
+        private int addrLength = 4;
         private List<LNGRow> lngRows = new List<LNGRow>();
         private readonly Dictionary<int, string> encodings = new Dictionary<int, string>
         { { 1200, "1200: UTF-16 LE" }, { 932, "932: Shift-JIS" }, {0,"" } };
@@ -94,9 +95,9 @@ namespace LNG_Translator
             System.Windows.Controls.MenuItem copyItem = new System.Windows.Controls.MenuItem() { Header = "Copy" };
             copyItem.Click += CopyContextButtonClick;
             context.Items.Add(copyItem);
-            System.Windows.Controls.MenuItem offsetItem = new System.Windows.Controls.MenuItem() { Header = "Offset" };
-            offsetItem.Click += OffsetContextButtonClick;
-            context.Items.Add(offsetItem);
+            //System.Windows.Controls.MenuItem offsetItem = new System.Windows.Controls.MenuItem() { Header = "Offset" };
+            //offsetItem.Click += OffsetContextButtonClick;
+            //context.Items.Add(offsetItem);
             stringsView.ContextMenu = context;
 
             searchTextBox.GotFocus += RemovePlaceholder;
@@ -126,8 +127,9 @@ namespace LNG_Translator
         {
             if (e.Key == System.Windows.Input.Key.Enter)
             {
-                byte[] searchTextBytes = Encoding.Default.GetBytes(searchTextBox.Text);
-                string searchText = Encoding.GetEncoding(this.curEnc).GetString(Encoding.Convert(Encoding.Default, Encoding.GetEncoding(this.curEnc), searchTextBytes));
+                //byte[] searchTextBytes = Encoding.Default.GetBytes(searchTextBox.Text);
+                //string searchText = Encoding.GetEncoding(this.curEnc).GetString(Encoding.Convert(Encoding.Default, Encoding.GetEncoding(this.curEnc), searchTextBytes));
+                string searchText = searchTextBox.Text;
                 stringsView.ItemsSource = lngRows.Where(row => row.OrigText.Contains(searchText));
                 stringsView.Items.Refresh();
                 AutoSizeColumns(stringsView.View as GridView);
@@ -139,7 +141,8 @@ namespace LNG_Translator
             LNGRow lrow = (LNGRow)stringsView.SelectedItem;
             if (lrow == null) { return; }
             byte[] trans = Encoding.UTF8.GetBytes(this.GoogleTranslate(lrow.OrigText));
-            lrow.TransTextBytes = Encoding.Convert(Encoding.UTF8, Encoding.GetEncoding(lrow.Encoding), trans);
+            //lrow.TransTextBytes = Encoding.Convert(Encoding.UTF8, Encoding.GetEncoding(lrow.Encoding), trans);
+            lrow.TransText = Encoding.GetEncoding(this.curEnc).GetString(Encoding.Convert(Encoding.UTF8, Encoding.GetEncoding(this.curEnc), trans));
             stringsView.Items.Refresh();
             AutoSizeColumns(stringsView.View as GridView);
         }
@@ -148,7 +151,7 @@ namespace LNG_Translator
         {
             LNGRow lrow = (LNGRow)stringsView.SelectedItem;
             if (lrow == null) { return; }
-            System.Windows.Clipboard.SetText(lrow.OrigText);
+            System.Windows.Clipboard.SetText(lrow.OrigText.Replace(Convert.ToChar(0x00), Convert.ToChar(0x20)));
 
             //string allText = ""; int cnt = 0;
             //for (int i = 0; i < lngRows.Count; i++)
@@ -182,14 +185,14 @@ namespace LNG_Translator
             //System.Windows.MessageBox.Show("Done!");
         }
 
-        private void OffsetContextButtonClick(object sender, RoutedEventArgs e)
-        {
-            LNGRow lrow = (LNGRow)stringsView.SelectedItem;
-            if (lrow == null) { return; }
-            string offset = lrow.Offset.Select(b => b.ToString("X2")).Aggregate((s1, s2) => s1 + s2);
-            System.Windows.MessageBox.Show(offset);
-            Console.WriteLine(lrow.Offset);
-        }
+        //private void OffsetContextButtonClick(object sender, RoutedEventArgs e)
+        //{
+        //    LNGRow lrow = (LNGRow)stringsView.SelectedItem;
+        //    if (lrow == null) { return; }
+        //    string offset = lrow.Offset.Select(b => b.ToString("X2")).Aggregate((s1, s2) => s1 + s2);
+        //    System.Windows.MessageBox.Show(offset);
+        //    Console.WriteLine(lrow.Offset);
+        //}
 
         private void langFrom_Select(object sender, RoutedEventArgs e)
         {
@@ -215,7 +218,8 @@ namespace LNG_Translator
                     ? true : false;
             }
             this.curEnc = enc;
-            this.UpdateStringsEncoding();
+            //this.UpdateStringsEncoding();
+            this.ReadFile();
         }
 
         private void OpenLNGFileButton_Click(object sender, RoutedEventArgs e)
@@ -231,6 +235,7 @@ namespace LNG_Translator
         private void ReadFile()
         {
             byte[] knownSignature = new byte[] { 0xA5, 0x5A, 0x5A, 0xA5, 0x01, 0x00, 0x00, 0x01 };
+            this.addrLength = 4;
             using (FileStream fs = new FileStream(this.FileName, FileMode.Open, FileAccess.Read))
             {
                 byte[] signature = new byte[8];
@@ -250,12 +255,12 @@ namespace LNG_Translator
                 lngRows.Clear();
 
                 int addr_id = 1;
-                int addrLength = 4;
-                fs.Read(addr, 0, addrLength);
+                //int addrLength = 4;
+                fs.Read(addr, 0, this.addrLength);
                 // may be 4 bytes offset
                 if (addr[2] != 0 || addr[3] != 0)
                 {
-                    addrLength = 2;
+                    this.addrLength = 2;
                     addr[2] = 0; addr[3] = 0;
                     fs.Position -= 2;
                 }
@@ -265,7 +270,7 @@ namespace LNG_Translator
                     long nextAddr = fs.Position;
                     fs.Position = 0x40 + BitConverter.ToUInt32(addr, 0) * 2;
                     fs.Read(bChar, 0, bChar.Length);
-                    int maxTextLength = 512;
+                    int maxTextLength = 1024;
                     while (maxTextLength > 0 && fs.Position <= fs.Length - 1)
                     {
                         if (!bChar.SequenceEqual(bEndChar))
@@ -282,17 +287,19 @@ namespace LNG_Translator
 
                     //string sText = Encoding.GetEncoding(this.curEnc).GetString(bText.ToArray());
                     //LNGRow lrow = new LNGRow(addr, sText)
-                    LNGRow lrow = new LNGRow(addr_id, addr, bText.ToArray())
-                    {
-                        Encoding = curEnc,
-                        //TransText = sText
-                        TransTextBytes = bText.ToArray()
-                    };
+                    //LNGRow lrow = new LNGRow(addr_id, addr, bText.ToArray())
+                    //{
+                    //    Encoding = curEnc,
+                    //    //TransText = sText
+                    //    //TransTextBytes = bText.ToArray()
+                    //};
+                    LNGRow lrow = new LNGRow(
+                        addr_id, addr, Encoding.GetEncoding(this.curEnc).GetString(bText.ToArray()), this.curEnc);
                     lngRows.Add(lrow);
                     addr_id++;
 
                     fs.Position = nextAddr;
-                    fs.Read(addr, 0, addrLength);
+                    fs.Read(addr, 0, this.addrLength);
                     if (fs.Position >= fs.Length - 1)
                     {
                         addr = endaddr;
@@ -311,10 +318,70 @@ namespace LNG_Translator
             FileInfo newFile = new FileInfo(this.FileName);
             string newFileName = newFile.Name.Substring(0, newFile.Name.Length - newFile.Extension.Length) + ".new" + newFile.Extension;
 
-            using (FileStream fs = new FileStream(newFileName, FileMode.Create, FileAccess.ReadWrite))
-            {
+            //0x00 - 0x3f - copy header
+            //0x18(4 bytes) - length of file
+            //0x20(4 bytes) - last string(end of strings)
+            //
+            //end of strings(just copy from last string to EOF):
+            //1.RG_VOICE_DATA
+            //2. 0x31(606 bytes)
+            //+ checksum ??? (2 bytes, if no change - still working)
 
+            byte[] origHeader = new byte[64];
+            byte[] eofData = new byte[] { };
+            byte[] lastOffset = new byte[4];
+            using (FileStream ifs = new FileStream(this.FileName, FileMode.Open, FileAccess.Read))
+            {
+                ifs.Read(origHeader, 0, origHeader.Length);
+                lastOffset = origHeader.Skip(32).Take(4).ToArray();
+                uint eofDataOffset = BitConverter.ToUInt32(lastOffset, 0);
+                ifs.Position = eofDataOffset;
+                Array.Resize(ref eofData, Convert.ToInt32(ifs.Length) - (int)eofDataOffset);
+                ifs.Read(eofData, 0, eofData.Length);
             }
+
+            bool hasEofOffset = 
+                (lastOffset.SequenceEqual(BitConverter.GetBytes(0x40 + BitConverter.ToUInt32(lngRows.Last().Offset, 0) * 2))) 
+                ? true : false;
+
+            byte[] endString = new byte[] { 0x00, 0x00 };
+            using (FileStream ofs = new FileStream(newFileName, FileMode.Create, FileAccess.ReadWrite))
+            {
+                ofs.Write(origHeader, 0, origHeader.Length);
+                byte[] offsetData = new byte[(lngRows.Count + 2) * this.addrLength];
+                ofs.Write(offsetData, 0, offsetData.Length);
+
+                foreach (LNGRow lrow in lngRows)
+                {
+                    long curAbsPos = ofs.Position;
+                    ofs.Position = 0x40 + this.addrLength * (lrow.Id - 1);
+                    byte[] curRelPos = BitConverter.GetBytes((curAbsPos - 0x40) / 2);
+                    ofs.Write(curRelPos, 0, this.addrLength);                    
+
+                    ofs.Position = curAbsPos;
+                    if (hasEofOffset && lrow == lngRows.Last()) { break; }
+
+                    byte[] saveString = (lrow.TransTextBytes.Length > 0) ? lrow.TransTextBytes : lrow.OrigTextBytes;
+                    ofs.Write(saveString, 0, saveString.Length);
+                    ofs.Write(endString, 0, endString.Length);
+                }
+                //0x20(4 bytes) - last string(end of strings)
+                long lastAbsPos = ofs.Position;
+                ofs.Position = 0x20;
+                byte[] lastPos = BitConverter.GetBytes(lastAbsPos);
+                ofs.Write(lastPos, 0, 4);
+                ofs.Position = lastAbsPos;
+
+                ofs.Write(eofData, 0, eofData.Length);
+
+                //0x18(4 bytes) - length of file
+                long lengthAbsPos = ofs.Position;
+                ofs.Position = 0x18;
+                byte[] fileLength = BitConverter.GetBytes(lengthAbsPos);
+                ofs.Write(fileLength, 0, 4);
+            }
+
+            System.Windows.MessageBox.Show(newFileName + " saved ok");
         }
 
         private void TextBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -331,21 +398,22 @@ namespace LNG_Translator
             txtbox.IsReadOnly = false;
         }
 
-        private void UpdateStringsEncoding()
-        {
-            lngRows.ForEach((lrow) => {
-                //lrow.OrigText = Encoding.GetEncoding(this.curEnc).GetString(Encoding.GetEncoding(lrow.Encoding).GetBytes(lrow.OrigText));
-                //lrow.TransText = Encoding.GetEncoding(this.curEnc).GetString(Encoding.GetEncoding(lrow.Encoding).GetBytes(lrow.TransText));
-                lrow.OrigTextBytes = Encoding.Convert(Encoding.GetEncoding(lrow.Encoding), Encoding.GetEncoding(this.curEnc), lrow.OrigTextBytes);
-                lrow.TransTextBytes = Encoding.Convert(Encoding.GetEncoding(lrow.Encoding), Encoding.GetEncoding(this.curEnc), lrow.TransTextBytes);
-                lrow.Encoding = this.curEnc;
-            });
-            stringsView.ItemsSource = (this.skipEmptyStringsButton.IsChecked)
-                ? lngRows.Where(row => row.OrigText != "")
-                : lngRows;
-            stringsView.Items.Refresh();
-            AutoSizeColumns(stringsView.View as GridView);
-        }
+        //private void UpdateStringsEncoding()
+        //{
+        //    lngRows.ForEach((lrow) => {
+        //        lrow.OrigTextBytes = Encoding.Convert(Encoding.GetEncoding(lrow.Encoding), Encoding.GetEncoding(this.curEnc), lrow.OrigTextBytes);
+        //        if (lrow.TransTextBytes != null && lrow.TransTextBytes.Length > 0)
+        //        {
+        //            lrow.TransTextBytes = Encoding.Convert(Encoding.GetEncoding(lrow.Encoding), Encoding.GetEncoding(this.curEnc), lrow.TransTextBytes);
+        //        }
+        //        lrow.Encoding = this.curEnc;
+        //    });
+        //    stringsView.ItemsSource = (this.skipEmptyStringsButton.IsChecked)
+        //        ? lngRows.Where(row => row.OrigText != "")
+        //        : lngRows;
+        //    stringsView.Items.Refresh();
+        //    AutoSizeColumns(stringsView.View as GridView);
+        //}
 
         private void UpdateStringsView()
         {
@@ -554,17 +622,25 @@ namespace LNG_Translator
         {
             private int id;
             private byte[] offset;
-            private byte[] origText;
-            private byte[] transText;
+            //private byte[] origText;
+            //private byte[] transText;
+            private string origText = "";
+            private string transText = "";
             private int encoding;
 
-            public LNGRow(int id, byte[] offset, byte[] origText)
+            //public LNGRow(int id, byte[] offset, byte[] origText)
+            public LNGRow(int id, byte[] offset, string origText, int enc)
             {
                 this.id = id;
                 this.offset = new byte[offset.Length];
                 offset.CopyTo(this.offset, 0);
-                this.origText = new byte[origText.Length];
-                origText.CopyTo(this.origText, 0);
+                //this.origText = new byte[origText.Length];
+                //origText.CopyTo(this.origText, 0);
+
+                //this.transText = new byte[] { };
+
+                this.origText = origText;
+                this.encoding = enc;
             }
 
             public int Id
@@ -572,50 +648,61 @@ namespace LNG_Translator
                 get { return this.id; }
             }
 
-            public int Encoding
-            {
-                get { return this.encoding; }
-                set { this.encoding = value; }
-            }
+            //public int Encoding
+            //{
+            //    get { return this.encoding; }
+            //    set { this.encoding = value; }
+            //}
 
             public byte[] Offset
             {
                 get { return this.offset; }
-                set { this.offset = value; }
+                //set { this.offset = value; }
             }
 
             public string OrigText
             {
                 get {
-                    byte[] otext = this.origText.Where(b => b != 0x00).ToArray();
-                    return System.Text.Encoding.GetEncoding(this.encoding).GetString(otext);
+                    //byte[] otext = this.origText.Where(b => b != 0x00).ToArray();
+                    //return System.Text.Encoding.GetEncoding(this.encoding).GetString(otext);
+                    return this.origText;
                 }
                 //set { this.origText = value; }
             }
 
             public byte[] OrigTextBytes
             {
-                get { return this.origText; }
-                set { this.origText = value; }
+                get {
+                    //return this.origText;
+                    return Encoding.GetEncoding(this.encoding).GetBytes(this.origText);
+                }
+                //set { this.origText = value; }
 
             }
 
             public byte[] TransTextBytes
             {
-                get { return this.transText; }
-                set {
-                    this.transText = new byte[value.Length];
-                    value.CopyTo(this.transText, 0);
+                get { 
+                    return Encoding.GetEncoding(this.encoding).GetBytes(this.transText);
                 }
+                //get { return this.transText; }
+                //set {
+                //    this.transText = new byte[value.Length];
+                //    value.CopyTo(this.transText, 0);
+                //}
             }
 
             public string TransText
             {
                 get {
-                    byte[] ttext = this.transText.Where(b => b != 0x00).ToArray();
-                    return System.Text.Encoding.GetEncoding(this.encoding).GetString(ttext);
+                    //byte[] ttext = this.transText.Where(b => b != 0x00).ToArray();
+                    //return System.Text.Encoding.GetEncoding(this.encoding).GetString(ttext);
+                    return this.transText;
                 }
-                set { this.transText = System.Text.Encoding.GetEncoding(this.encoding).GetBytes(value); }
+                set {
+                    //this.transText = System.Text.Encoding.GetEncoding(this.encoding).GetBytes(value);
+                    this.transText = value;
+                }
             }
         }
     }

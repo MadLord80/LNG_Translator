@@ -20,9 +20,11 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <Menu Height="30" VerticalAlignment="Top" Grid.Row="0" Grid.ColumnSpan="2" FontSize="16">
-            <MenuItem x:Name="openLNGFileButton" Header="Open *.LNG" Height="30" Width="103" Click="OpenLNGFileButton_Click"/>
+            <MenuItem Header="File" Height="30" Width="60">
+                <MenuItem x:Name="openLNGFileButton" Header="Open *.LNG" Height="30" Click="OpenLNGFileButton_Click" HorizontalAlignment="Left" Margin="0,0,-3,0"/>
+                <MenuItem x:Name="resEncMenuItem" Header="Reopen with encoding" Height="30"/>
+            </MenuItem>
             <MenuItem x:Name="skipEmptyStringsButton" Header="Skip empty strings" Height="30" Width="161" IsCheckable="True" IsChecked="True" Click="SkipEmptyStringsButton_Click"/>
-            <MenuItem x:Name="resEncMenuItem" Header="Encoding" Height="30"/>
             <MenuItem x:Name="selectTransLangsButton" Header="" Height="30">
                 <MenuItem x:Name="langFromMenuItem" Header="Lang from:" Height="20"/>
                 <MenuItem x:Name="langToMenuItem" Header="Lang to:" Height="25"/>
