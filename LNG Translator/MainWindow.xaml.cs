@@ -23,9 +23,16 @@ namespace LNG_Translator
         private string FileName;
         private int addrLength = 4;
         private List<LNGRow> lngRows = new List<LNGRow>();
-        private readonly Dictionary<int, string> encodings = new Dictionary<int, string>
-        { { 1200, "1200: UTF-16 LE" }, { 932, "932: Shift-JIS" }, {0,"" } };
-        private int curEnc = 1200;
+        private readonly Dictionary<int, string> encodings = new Dictionary<int, string> {
+            { 932, "Shift-JIS" },
+            { 1200, "UTF-16 LE" },
+            { 1201, "UTF-16 BE" },
+            { 65001, "UTF-8" },
+            { 1251, "Windows - 1251" },
+            { 1252, "Windows - 1252" }
+        };
+        //{ { 932, "932: Shift-JIS" }, { 1200, "1200: UTF-16 LE" }, {0,"" } };
+        private int curEnc = 932;
 
         private Dictionary<string, string> langs;
         private string curFromLang = "ja";
@@ -37,21 +44,21 @@ namespace LNG_Translator
 
             this.FillLangs();
 
-            foreach (EncodingInfo enc in Encoding.GetEncodings())
-            {
-                if (enc.CodePage != 1200 && enc.CodePage != 932)
-                {
-                    encodings.Add(enc.CodePage, enc.CodePage + ": " + enc.DisplayName);
-                }
-            }
+            //foreach (EncodingInfo enc in Encoding.GetEncodings())
+            //{
+            //    if (enc.CodePage != 1200 && enc.CodePage != 932)
+            //    {
+            //        encodings.Add(enc.CodePage, enc.CodePage + ": " + enc.DisplayName);
+            //    }
+            //}
             foreach (KeyValuePair<int, string> enc in encodings)
             {
-                if (enc.Key == 0)
-                {
-                    Separator ms = new Separator();
-                    resEncMenuItem.Items.Add(ms);
-                    continue;
-                }
+                //if (enc.Key == 0)
+                //{
+                //    Separator ms = new Separator();
+                //    resEncMenuItem.Items.Add(ms);
+                //    continue;
+                //}
                 System.Windows.Controls.MenuItem mi = new System.Windows.Controls.MenuItem
                 {
                     Header = enc.Value,
@@ -151,7 +158,8 @@ namespace LNG_Translator
         {
             LNGRow lrow = (LNGRow)stringsView.SelectedItem;
             if (lrow == null) { return; }
-            System.Windows.Clipboard.SetText(lrow.OrigText.Replace(Convert.ToChar(0x00), Convert.ToChar(0x20)));
+            //System.Windows.Clipboard.SetText(lrow.OrigText.Replace(Convert.ToChar(0x00), Convert.ToChar(0x20)));
+            System.Windows.Clipboard.SetText(lrow.OrigText);
 
             //string allText = ""; int cnt = 0;
             //for (int i = 0; i < lngRows.Count; i++)
@@ -227,6 +235,7 @@ namespace LNG_Translator
             if (OpenFileDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
                 MainWindowElement.Title = this.windowTitle + " - " + OpenFileDialog.FileName;
+                MainWindowElement.Title += " [" + Encoding.GetEncoding(this.curEnc).WebName + "]";
                 this.FileName = OpenFileDialog.FileName;
                 this.ReadFile();
             }
@@ -234,6 +243,9 @@ namespace LNG_Translator
 
         private void ReadFile()
         {
+            MainWindowElement.Title = this.windowTitle + " - " + this.FileName;
+            MainWindowElement.Title += " [" + Encoding.GetEncoding(this.curEnc).WebName + "]";
+
             byte[] knownSignature = new byte[] { 0xA5, 0x5A, 0x5A, 0xA5, 0x01, 0x00, 0x00, 0x01 };
             this.addrLength = 4;
             using (FileStream fs = new FileStream(this.FileName, FileMode.Open, FileAccess.Read))
@@ -246,11 +258,19 @@ namespace LNG_Translator
                     return;
                 }
 
+                int bytesPerSymbol = Encoding.GetEncoding(this.curEnc).GetByteCount(new char[] { 'A' });
+
+                byte[] lastStringOffset = new byte[4];
+                fs.Position = 0x20;
+                fs.Read(lastStringOffset, 0, lastStringOffset.Length);
+
                 fs.Position = 0x40;
                 byte[] addr = new byte[4] { 0xff, 0xff, 0x00, 0x00 };
                 byte[] endaddr = new byte[4] { 0x00, 0x00, 0x00, 0x00 };
-                byte[] bChar = new byte[2] { 0xff, 0xff };
-                byte[] bEndChar = new byte[2] { 0x00, 0x00 };
+                //byte[] bChar = new byte[2] { 0xff, 0xff };
+                byte[] bChar = new byte[bytesPerSymbol];
+                //byte[] bEndChar = new byte[2] { 0x00, 0x00 };
+                byte[] bEndChar = new byte[bytesPerSymbol];
                 List<byte> bText = new List<byte>();
                 lngRows.Clear();
 
@@ -269,20 +289,28 @@ namespace LNG_Translator
                     bText.Clear();
                     long nextAddr = fs.Position;
                     fs.Position = 0x40 + BitConverter.ToUInt32(addr, 0) * 2;
-                    fs.Read(bChar, 0, bChar.Length);
-                    int maxTextLength = 1024;
-                    while (maxTextLength > 0 && fs.Position <= fs.Length - 1)
+                    if (BitConverter.GetBytes(fs.Position).SequenceEqual(lastStringOffset)) { break; }
+                    fs.Read(bChar, 0, bChar.Length);                    
+                    //int maxTextLength = 1024;
+                    //while (maxTextLength > 0 && fs.Position <= fs.Length - 1)
+                    while (fs.Position < fs.Length - 1)
                     {
-                        if (!bChar.SequenceEqual(bEndChar))
+                        //if (bChar == 0x00) { break; }
+                        if (bChar.SequenceEqual(bEndChar)) { break; }
+                        //if (bChar != 0x00)
+                        //{
+                        //bText.Add(bChar[0]); bText.Add(bChar[1]);
+                        //bText.Add(bChar);
+                        foreach (byte mchar in bChar)
                         {
-                            bText.Add(bChar[0]); bText.Add(bChar[1]);
-                            fs.Read(bChar, 0, bChar.Length);
-                            maxTextLength--;
+                            bText.Add(mchar);
                         }
-                        else
-                        {
-                            break;
-                        }
+                        fs.Read(bChar, 0, bChar.Length);
+                        //bChar = (byte)fs.ReadByte();
+                        //maxTextLength--;
+                        //continue;
+                        //}
+                        //break;
                     }
 
                     //string sText = Encoding.GetEncoding(this.curEnc).GetString(bText.ToArray());
@@ -326,7 +354,7 @@ namespace LNG_Translator
             //1.RG_VOICE_DATA
             //2. 0x31(606 bytes)
             //+ checksum ??? (2 bytes, if no change - still working)
-
+            
             byte[] origHeader = new byte[64];
             byte[] eofData = new byte[] { };
             byte[] lastOffset = new byte[4];
@@ -344,6 +372,7 @@ namespace LNG_Translator
                 (lastOffset.SequenceEqual(BitConverter.GetBytes(0x40 + BitConverter.ToUInt32(lngRows.Last().Offset, 0) * 2))) 
                 ? true : false;
 
+            int bytesPerSymbol = Encoding.GetEncoding(this.curEnc).GetByteCount(new char[] { 'A' });
             byte[] endString = new byte[] { 0x00, 0x00 };
             using (FileStream ofs = new FileStream(newFileName, FileMode.Create, FileAccess.ReadWrite))
             {
@@ -363,7 +392,8 @@ namespace LNG_Translator
 
                     byte[] saveString = (lrow.TransTextBytes.Length > 0) ? lrow.TransTextBytes : lrow.OrigTextBytes;
                     ofs.Write(saveString, 0, saveString.Length);
-                    ofs.Write(endString, 0, endString.Length);
+                    //end of string
+                    ofs.Write(endString, 0, (bytesPerSymbol == 1 && saveString.Length % 2 != 0) ? 1 : endString.Length);
                 }
                 //0x20(4 bytes) - last string(end of strings)
                 long lastAbsPos = ofs.Position;
