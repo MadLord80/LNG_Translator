@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Text;
 using System.Linq;
 using System.Windows.Controls;
-using System.Net;
 using System.Net.Http;
 using System.Web.Script.Serialization;
 using System.Collections;
@@ -31,7 +30,6 @@ namespace LNG_Translator
             { 1251, "Windows - 1251" },
             { 1252, "Windows - 1252" }
         };
-        //{ { 932, "932: Shift-JIS" }, { 1200, "1200: UTF-16 LE" }, {0,"" } };
         private int curEnc = 932;
 
         private Dictionary<string, string> langs;
@@ -44,21 +42,8 @@ namespace LNG_Translator
 
             this.FillLangs();
 
-            //foreach (EncodingInfo enc in Encoding.GetEncodings())
-            //{
-            //    if (enc.CodePage != 1200 && enc.CodePage != 932)
-            //    {
-            //        encodings.Add(enc.CodePage, enc.CodePage + ": " + enc.DisplayName);
-            //    }
-            //}
             foreach (KeyValuePair<int, string> enc in encodings)
             {
-                //if (enc.Key == 0)
-                //{
-                //    Separator ms = new Separator();
-                //    resEncMenuItem.Items.Add(ms);
-                //    continue;
-                //}
                 System.Windows.Controls.MenuItem mi = new System.Windows.Controls.MenuItem
                 {
                     Header = enc.Value,
@@ -102,9 +87,6 @@ namespace LNG_Translator
             System.Windows.Controls.MenuItem copyItem = new System.Windows.Controls.MenuItem() { Header = "Copy" };
             copyItem.Click += CopyContextButtonClick;
             context.Items.Add(copyItem);
-            //System.Windows.Controls.MenuItem offsetItem = new System.Windows.Controls.MenuItem() { Header = "Offset" };
-            //offsetItem.Click += OffsetContextButtonClick;
-            //context.Items.Add(offsetItem);
             stringsView.ContextMenu = context;
 
             searchTextBox.GotFocus += RemovePlaceholder;
@@ -134,8 +116,6 @@ namespace LNG_Translator
         {
             if (e.Key == System.Windows.Input.Key.Enter)
             {
-                //byte[] searchTextBytes = Encoding.Default.GetBytes(searchTextBox.Text);
-                //string searchText = Encoding.GetEncoding(this.curEnc).GetString(Encoding.Convert(Encoding.Default, Encoding.GetEncoding(this.curEnc), searchTextBytes));
                 string searchText = searchTextBox.Text;
                 stringsView.ItemsSource = lngRows.Where(row => row.OrigText.Contains(searchText));
                 stringsView.Items.Refresh();
@@ -148,7 +128,6 @@ namespace LNG_Translator
             LNGRow lrow = (LNGRow)stringsView.SelectedItem;
             if (lrow == null) { return; }
             byte[] trans = Encoding.UTF8.GetBytes(this.GoogleTranslate(lrow.OrigText));
-            //lrow.TransTextBytes = Encoding.Convert(Encoding.UTF8, Encoding.GetEncoding(lrow.Encoding), trans);
             lrow.TransText = Encoding.GetEncoding(this.curEnc).GetString(Encoding.Convert(Encoding.UTF8, Encoding.GetEncoding(this.curEnc), trans));
             stringsView.Items.Refresh();
             AutoSizeColumns(stringsView.View as GridView);
@@ -158,49 +137,8 @@ namespace LNG_Translator
         {
             LNGRow lrow = (LNGRow)stringsView.SelectedItem;
             if (lrow == null) { return; }
-            //System.Windows.Clipboard.SetText(lrow.OrigText.Replace(Convert.ToChar(0x00), Convert.ToChar(0x20)));
             System.Windows.Clipboard.SetText(lrow.OrigText);
-
-            //string allText = ""; int cnt = 0;
-            //for (int i = 0; i < lngRows.Count; i++)
-            //{
-            //    if (lngRows[i].OrigText != "")
-            //    {
-            //        allText += lngRows[i].OrigText + "\n";
-            //        cnt++;
-            //    }
-            //}
-            //System.Windows.MessageBox.Show("Copied " + cnt + " strings");
-            //System.Windows.Clipboard.SetText(allText);
-
-            //string stringsFileName = "origs.txt";
-            //byte[] endLine = new byte[] { 0x0d, 0x0a };
-            //byte[] BOM = new byte[] { 0xef, 0xbb, 0xbf };
-            //using (FileStream fs = new FileStream(stringsFileName, FileMode.Create, FileAccess.ReadWrite))
-            //{
-            //    fs.Write(BOM, 0, BOM.Length);
-            //    for (int i = 0; i < lngRows.Count; i++)
-            //    {
-            //        if (lngRows[i].OrigText != "")
-            //        {
-            //            byte[] istr = Encoding.GetEncoding(curEnc).GetBytes(lngRows[i].OrigText);
-            //            byte[] str = Encoding.Convert(Encoding.GetEncoding(curEnc), Encoding.UTF8, istr);
-            //            fs.Write(str, 0, str.Length);
-            //            fs.Write(endLine, 0, endLine.Length);
-            //        }
-            //    }
-            //}
-            //System.Windows.MessageBox.Show("Done!");
         }
-
-        //private void OffsetContextButtonClick(object sender, RoutedEventArgs e)
-        //{
-        //    LNGRow lrow = (LNGRow)stringsView.SelectedItem;
-        //    if (lrow == null) { return; }
-        //    string offset = lrow.Offset.Select(b => b.ToString("X2")).Aggregate((s1, s2) => s1 + s2);
-        //    System.Windows.MessageBox.Show(offset);
-        //    Console.WriteLine(lrow.Offset);
-        //}
 
         private void langFrom_Select(object sender, RoutedEventArgs e)
         {
@@ -226,7 +164,6 @@ namespace LNG_Translator
                     ? true : false;
             }
             this.curEnc = enc;
-            //this.UpdateStringsEncoding();
             this.ReadFile();
         }
 
@@ -267,15 +204,12 @@ namespace LNG_Translator
                 fs.Position = 0x40;
                 byte[] addr = new byte[4] { 0xff, 0xff, 0x00, 0x00 };
                 byte[] endaddr = new byte[4] { 0x00, 0x00, 0x00, 0x00 };
-                //byte[] bChar = new byte[2] { 0xff, 0xff };
                 byte[] bChar = new byte[bytesPerSymbol];
-                //byte[] bEndChar = new byte[2] { 0x00, 0x00 };
                 byte[] bEndChar = new byte[bytesPerSymbol];
                 List<byte> bText = new List<byte>();
                 lngRows.Clear();
 
                 int addr_id = 1;
-                //int addrLength = 4;
                 fs.Read(addr, 0, this.addrLength);
                 // may be 4 bytes offset
                 if (addr[2] != 0 || addr[3] != 0)
@@ -290,37 +224,18 @@ namespace LNG_Translator
                     long nextAddr = fs.Position;
                     fs.Position = 0x40 + BitConverter.ToUInt32(addr, 0) * 2;
                     if (BitConverter.GetBytes(fs.Position).SequenceEqual(lastStringOffset)) { break; }
-                    fs.Read(bChar, 0, bChar.Length);                    
-                    //int maxTextLength = 1024;
-                    //while (maxTextLength > 0 && fs.Position <= fs.Length - 1)
+                    fs.Read(bChar, 0, bChar.Length);
                     while (fs.Position < fs.Length - 1)
                     {
-                        //if (bChar == 0x00) { break; }
                         if (bChar.SequenceEqual(bEndChar)) { break; }
-                        //if (bChar != 0x00)
-                        //{
-                        //bText.Add(bChar[0]); bText.Add(bChar[1]);
-                        //bText.Add(bChar);
+
                         foreach (byte mchar in bChar)
                         {
                             bText.Add(mchar);
                         }
                         fs.Read(bChar, 0, bChar.Length);
-                        //bChar = (byte)fs.ReadByte();
-                        //maxTextLength--;
-                        //continue;
-                        //}
-                        //break;
                     }
 
-                    //string sText = Encoding.GetEncoding(this.curEnc).GetString(bText.ToArray());
-                    //LNGRow lrow = new LNGRow(addr, sText)
-                    //LNGRow lrow = new LNGRow(addr_id, addr, bText.ToArray())
-                    //{
-                    //    Encoding = curEnc,
-                    //    //TransText = sText
-                    //    //TransTextBytes = bText.ToArray()
-                    //};
                     LNGRow lrow = new LNGRow(
                         addr_id, addr, Encoding.GetEncoding(this.curEnc).GetString(bText.ToArray()), this.curEnc);
                     lngRows.Add(lrow);
@@ -427,24 +342,7 @@ namespace LNG_Translator
             System.Windows.Controls.TextBox txtbox = (System.Windows.Controls.TextBox)sender;
             txtbox.IsReadOnly = false;
         }
-
-        //private void UpdateStringsEncoding()
-        //{
-        //    lngRows.ForEach((lrow) => {
-        //        lrow.OrigTextBytes = Encoding.Convert(Encoding.GetEncoding(lrow.Encoding), Encoding.GetEncoding(this.curEnc), lrow.OrigTextBytes);
-        //        if (lrow.TransTextBytes != null && lrow.TransTextBytes.Length > 0)
-        //        {
-        //            lrow.TransTextBytes = Encoding.Convert(Encoding.GetEncoding(lrow.Encoding), Encoding.GetEncoding(this.curEnc), lrow.TransTextBytes);
-        //        }
-        //        lrow.Encoding = this.curEnc;
-        //    });
-        //    stringsView.ItemsSource = (this.skipEmptyStringsButton.IsChecked)
-        //        ? lngRows.Where(row => row.OrigText != "")
-        //        : lngRows;
-        //    stringsView.Items.Refresh();
-        //    AutoSizeColumns(stringsView.View as GridView);
-        //}
-
+        
         private void UpdateStringsView()
         {
             stringsView.ItemsSource = (this.skipEmptyStringsButton.IsChecked)
@@ -652,22 +550,15 @@ namespace LNG_Translator
         {
             private int id;
             private byte[] offset;
-            //private byte[] origText;
-            //private byte[] transText;
             private string origText = "";
             private string transText = "";
             private int encoding;
 
-            //public LNGRow(int id, byte[] offset, byte[] origText)
             public LNGRow(int id, byte[] offset, string origText, int enc)
             {
                 this.id = id;
                 this.offset = new byte[offset.Length];
                 offset.CopyTo(this.offset, 0);
-                //this.origText = new byte[origText.Length];
-                //origText.CopyTo(this.origText, 0);
-
-                //this.transText = new byte[] { };
 
                 this.origText = origText;
                 this.encoding = enc;
@@ -678,61 +569,31 @@ namespace LNG_Translator
                 get { return this.id; }
             }
 
-            //public int Encoding
-            //{
-            //    get { return this.encoding; }
-            //    set { this.encoding = value; }
-            //}
-
             public byte[] Offset
             {
                 get { return this.offset; }
-                //set { this.offset = value; }
             }
 
             public string OrigText
             {
-                get {
-                    //byte[] otext = this.origText.Where(b => b != 0x00).ToArray();
-                    //return System.Text.Encoding.GetEncoding(this.encoding).GetString(otext);
-                    return this.origText;
-                }
-                //set { this.origText = value; }
+                get { return this.origText; }
             }
 
             public byte[] OrigTextBytes
             {
-                get {
-                    //return this.origText;
-                    return Encoding.GetEncoding(this.encoding).GetBytes(this.origText);
-                }
-                //set { this.origText = value; }
+                get { return Encoding.GetEncoding(this.encoding).GetBytes(this.origText); }
 
             }
 
             public byte[] TransTextBytes
             {
-                get { 
-                    return Encoding.GetEncoding(this.encoding).GetBytes(this.transText);
-                }
-                //get { return this.transText; }
-                //set {
-                //    this.transText = new byte[value.Length];
-                //    value.CopyTo(this.transText, 0);
-                //}
+                get { return Encoding.GetEncoding(this.encoding).GetBytes(this.transText); }
             }
 
             public string TransText
             {
-                get {
-                    //byte[] ttext = this.transText.Where(b => b != 0x00).ToArray();
-                    //return System.Text.Encoding.GetEncoding(this.encoding).GetString(ttext);
-                    return this.transText;
-                }
-                set {
-                    //this.transText = System.Text.Encoding.GetEncoding(this.encoding).GetBytes(value);
-                    this.transText = value;
-                }
+                get { return this.transText; }
+                set { this.transText = value; }
             }
         }
     }
