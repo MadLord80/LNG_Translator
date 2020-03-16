@@ -8,7 +8,7 @@
         Height="{Binding SystemParameters.PrimaryScreenHeight}" 
         Width="{Binding SystemParameters.PrimaryScreenWidth}"
         Style="{StaticResource {x:Type Window}}" 
-        Title="LNG Translator" FontSize="18">
+        Title="LNG Translator" FontSize="18" Icon="NinjaToy.ico">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
@@ -29,6 +29,7 @@
                 <MenuItem x:Name="langFromMenuItem" Header="Lang from:" Height="20"/>
                 <MenuItem x:Name="langToMenuItem" Header="Lang to:" Height="25"/>
             </MenuItem>
+            <MenuItem x:Name="HelpButton" Height="30" Header="About" Click="HelpButton_Click"/>
         </Menu>
         <ListView x:Name="stringsView" Grid.Row="3" Grid.ColumnSpan="2" Style="{StaticResource ListViewWithGridViewStyle}" BorderThickness="1">
             <ListView.View>

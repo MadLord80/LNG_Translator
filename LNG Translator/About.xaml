@@ -1,0 +1,14 @@
+﻿<Window x:Class="LNG_Translator.About"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:LNG_Translator"
+        mc:Ignorable="d"
+        Style="{StaticResource {x:Type Window}}"
+        Title="About" Height="136.324" Width="344.706" ResizeMode="NoResize">
+    <Grid>
+        <TextBox x:Name="AboutText" HorizontalAlignment="Left" Height="86" Margin="10,10,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="315" IsReadOnly="True"/>
+
+    </Grid>
+</Window>

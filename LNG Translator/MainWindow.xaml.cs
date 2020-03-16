@@ -39,7 +39,7 @@ namespace LNG_Translator
         public MainWindow()
         {
             InitializeComponent();
-
+            
             this.FillLangs();
 
             foreach (KeyValuePair<int, string> enc in encodings)
@@ -81,9 +81,12 @@ namespace LNG_Translator
             OpenFileDialog.Filter = "LNG files (*.LNG)|*.LNG|All files (*.*)|*.*";
 
             System.Windows.Controls.ContextMenu context = new System.Windows.Controls.ContextMenu();
-            System.Windows.Controls.MenuItem exportItem = new System.Windows.Controls.MenuItem() { Header = "Google Translate" };
+            System.Windows.Controls.MenuItem exportItem = new System.Windows.Controls.MenuItem() { Header = "Google Translate 1" };
             exportItem.Click += TranslateContextButtonClick;
             context.Items.Add(exportItem);
+            System.Windows.Controls.MenuItem exportItem2 = new System.Windows.Controls.MenuItem() { Header = "Google Translate 2" };
+            exportItem2.Click += TranslateContextButtonClick2;
+            context.Items.Add(exportItem2);
             System.Windows.Controls.MenuItem copyItem = new System.Windows.Controls.MenuItem() { Header = "Copy" };
             copyItem.Click += CopyContextButtonClick;
             context.Items.Add(copyItem);
@@ -128,6 +131,16 @@ namespace LNG_Translator
             LNGRow lrow = (LNGRow)stringsView.SelectedItem;
             if (lrow == null) { return; }
             byte[] trans = Encoding.UTF8.GetBytes(this.GoogleTranslate(lrow.OrigText));
+            lrow.TransText = Encoding.GetEncoding(this.curEnc).GetString(Encoding.Convert(Encoding.UTF8, Encoding.GetEncoding(this.curEnc), trans));
+            stringsView.Items.Refresh();
+            AutoSizeColumns(stringsView.View as GridView);
+        }
+
+        private void TranslateContextButtonClick2(object sender, RoutedEventArgs e)
+        {
+            LNGRow lrow = (LNGRow)stringsView.SelectedItem;
+            if (lrow == null) { return; }
+            byte[] trans = Encoding.UTF8.GetBytes(this.GoogleTranslate2(lrow.OrigText));
             lrow.TransText = Encoding.GetEncoding(this.curEnc).GetString(Encoding.Convert(Encoding.UTF8, Encoding.GetEncoding(this.curEnc), trans));
             stringsView.Items.Refresh();
             AutoSizeColumns(stringsView.View as GridView);
@@ -404,6 +417,29 @@ namespace LNG_Translator
             return translation;
         }
 
+        private string GoogleTranslate2(string text)
+        {
+            // example from bellic
+            string url = String.Format
+                ("http://translate.google.ru/translate_a/t?client=x&hl=ru&tab=wT&sl={0}&tl={1}&text={2}",
+                    curFromLang, curToLang, Uri.EscapeUriString(text));
+            HttpClient httpClient = new HttpClient();
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.1; rv:59.0) Gecko/20100101 Firefox/59.0");
+
+            string result = null;
+            try
+            {
+                result = httpClient.GetStringAsync(url).Result;
+            }
+            catch (Exception e)
+            {
+                System.Windows.MessageBox.Show(e.ToString());
+                return text;
+            }
+
+            return result;
+        }
+
         private string ByteArrayToString(byte[] ba)
         {
             StringBuilder hex = new StringBuilder(ba.Length * 2);
@@ -595,6 +631,12 @@ namespace LNG_Translator
                 get { return this.transText; }
                 set { this.transText = value; }
             }
+        }
+
+        private void HelpButton_Click(object sender, RoutedEventArgs e)
+        {
+            Window about = new About();
+            about.ShowDialog();
         }
     }
 }
