@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using System.Net.Http;
 using System.Web.Script.Serialization;
 using System.Collections;
+using System.Windows.Input;
 
 namespace LNG_Translator
 {
@@ -81,16 +82,21 @@ namespace LNG_Translator
             OpenFileDialog.Filter = "LNG files (*.LNG)|*.LNG|All files (*.*)|*.*";
 
             System.Windows.Controls.ContextMenu context = new System.Windows.Controls.ContextMenu();
-            System.Windows.Controls.MenuItem exportItem = new System.Windows.Controls.MenuItem() { Header = "Google Translate 1" };
+            System.Windows.Controls.MenuItem exportItem = new System.Windows.Controls.MenuItem() { Header = "Google Translate (or Ctrl+Q)" };
             exportItem.Click += TranslateContextButtonClick;
             context.Items.Add(exportItem);
-            System.Windows.Controls.MenuItem exportItem2 = new System.Windows.Controls.MenuItem() { Header = "Google Translate 2" };
-            exportItem2.Click += TranslateContextButtonClick2;
-            context.Items.Add(exportItem2);
-            System.Windows.Controls.MenuItem copyItem = new System.Windows.Controls.MenuItem() { Header = "Copy" };
-            copyItem.Click += CopyContextButtonClick;
-            context.Items.Add(copyItem);
+            // System.Windows.Controls.MenuItem exportItem2 = new System.Windows.Controls.MenuItem() { Header = "Google Translate 2" };
+            // exportItem2.Click += TranslateContextButtonClick2;
+            // context.Items.Add(exportItem2);
+            System.Windows.Controls.MenuItem copyOrigToTranslane = new System.Windows.Controls.MenuItem() { Header = "Copy original to translate" };
+            copyOrigToTranslane.Click += CopyContextButtonClick2;
+            context.Items.Add(copyOrigToTranslane);
+            System.Windows.Controls.MenuItem copyOrigToClipboard = new System.Windows.Controls.MenuItem() { Header = "Copy original to clipboard" };
+            copyOrigToClipboard.Click += CopyContextButtonClick;
+            context.Items.Add(copyOrigToClipboard);
             stringsView.ContextMenu = context;
+
+            stringsView.KeyDown += DefaultTranslateKeyDown;
 
             searchTextBox.GotFocus += RemovePlaceholder;
             searchTextBox.LostFocus += AddSearchText;
@@ -98,6 +104,15 @@ namespace LNG_Translator
             string version = System.Windows.Forms.Application.ProductVersion;
             this.windowTitle += " v." + version.Remove(version.Length - 2);
             MainWindowElement.Title = this.windowTitle;
+        }
+
+        private void DefaultTranslateKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            bool modifier = (e.KeyboardDevice.Modifiers == ModifierKeys.Control || e.KeyboardDevice.Modifiers == ModifierKeys.Shift); 
+            if (modifier && e.Key == Key.Q)
+            {
+                TranslateContext();
+            }
         }
 
         private void RemovePlaceholder(object sender, RoutedEventArgs e)
@@ -128,12 +143,22 @@ namespace LNG_Translator
 
         private void TranslateContextButtonClick(object sender, RoutedEventArgs e)
         {
+            TranslateContext();
+        }
+
+        public void TranslateContext()
+        {
             LNGRow lrow = (LNGRow)stringsView.SelectedItem;
             if (lrow == null) { return; }
             byte[] trans = Encoding.UTF8.GetBytes(this.GoogleTranslate(lrow.OrigText));
             lrow.TransText = Encoding.GetEncoding(this.curEnc).GetString(Encoding.Convert(Encoding.UTF8, Encoding.GetEncoding(this.curEnc), trans));
+            lrow.TransText = char.ToUpper(lrow.TransText[0]) + lrow.TransText.Substring(1);
             stringsView.Items.Refresh();
+            stringsView.UpdateLayout();
+            stringsView.ScrollIntoView(lrow);
+            ListBoxItem lbi = (ListBoxItem)stringsView.ItemContainerGenerator.ContainerFromItem(lrow);
             AutoSizeColumns(stringsView.View as GridView);
+            lbi.Focus();
         }
 
         private void TranslateContextButtonClick2(object sender, RoutedEventArgs e)
@@ -151,6 +176,15 @@ namespace LNG_Translator
             LNGRow lrow = (LNGRow)stringsView.SelectedItem;
             if (lrow == null) { return; }
             System.Windows.Clipboard.SetText(lrow.OrigText);
+        }
+
+        private void CopyContextButtonClick2(object sender, RoutedEventArgs e)
+        {
+            LNGRow lrow = (LNGRow)stringsView.SelectedItem;
+            if (lrow == null) { return; }
+            lrow.TransText = lrow.OrigText;
+            stringsView.Items.Refresh();
+            AutoSizeColumns(stringsView.View as GridView);
         }
 
         private void langFrom_Select(object sender, RoutedEventArgs e)
@@ -196,11 +230,11 @@ namespace LNG_Translator
             MainWindowElement.Title = this.windowTitle + " - " + this.FileName;
             MainWindowElement.Title += " [" + Encoding.GetEncoding(this.curEnc).WebName + "]";
 
-            byte[] knownSignature = new byte[] { 0xA5, 0x5A, 0x5A, 0xA5, 0x01, 0x00, 0x00, 0x01 };
+            byte[] knownSignature = new byte[] { 0xA5, 0x5A, 0x5A, 0xA5 };
             this.addrLength = 4;
             using (FileStream fs = new FileStream(this.FileName, FileMode.Open, FileAccess.Read))
             {
-                byte[] signature = new byte[8];
+                byte[] signature = new byte[4];
                 fs.Read(signature, 0, signature.Length);
                 if (!signature.SequenceEqual(knownSignature))
                 {
@@ -273,6 +307,7 @@ namespace LNG_Translator
         {
             FileInfo newFile = new FileInfo(this.FileName);
             string newFileName = newFile.Name.Substring(0, newFile.Name.Length - newFile.Extension.Length) + ".new" + newFile.Extension;
+            string newFullFileName = newFile.Directory + "\\" + newFileName;
 
             //0x00 - 0x3f - copy header
             //0x18(4 bytes) - length of file
@@ -302,7 +337,7 @@ namespace LNG_Translator
 
             int bytesPerSymbol = Encoding.GetEncoding(this.curEnc).GetByteCount(new char[] { 'A' });
             byte[] endString = new byte[] { 0x00, 0x00 };
-            using (FileStream ofs = new FileStream(newFileName, FileMode.Create, FileAccess.ReadWrite))
+            using (FileStream ofs = new FileStream(newFullFileName, FileMode.Create, FileAccess.ReadWrite))
             {
                 ofs.Write(origHeader, 0, origHeader.Length);
                 byte[] offsetData = new byte[(lngRows.Count + 2) * this.addrLength];
@@ -318,11 +353,14 @@ namespace LNG_Translator
                     ofs.Position = curAbsPos;
                     if (hasEofOffset && lrow == lngRows.Last()) { break; }
 
+                    lrow.TransText = lrow.TransText.Replace("\x0D", "");
                     byte[] saveString = (lrow.TransTextBytes.Length > 0) ? lrow.TransTextBytes : lrow.OrigTextBytes;
                     ofs.Write(saveString, 0, saveString.Length);
                     //end of string
                     ofs.Write(endString, 0, (bytesPerSymbol == 1 && saveString.Length % 2 != 0) ? 1 : endString.Length);
                 }
+                // add 2 zero bytes in the end for HRZ-900
+                ofs.Write(endString, 0, 2);
                 //0x20(4 bytes) - last string(end of strings)
                 long lastAbsPos = ofs.Position;
                 ofs.Position = 0x20;
@@ -339,7 +377,7 @@ namespace LNG_Translator
                 ofs.Write(fileLength, 0, 4);
             }
 
-            System.Windows.MessageBox.Show(newFileName + " saved ok");
+            System.Windows.MessageBox.Show(newFullFileName + " saved ok");
         }
 
         private void TextBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -348,6 +386,7 @@ namespace LNG_Translator
             ContentPresenter cp = (ContentPresenter)tbox.TemplatedParent;
             LNGRow lrow = (LNGRow)cp.Content;
             lrow.TransText = tbox.Text;
+            AutoSizeColumns(stringsView.View as GridView);
         }
 
         private void TextBox_SelectionChanged(object sender, RoutedEventArgs e)
@@ -407,11 +446,11 @@ namespace LNG_Translator
                 translationLineString.MoveNext();
 
                 // Save its value (translated text)
-                translation += string.Format(" {0}", Convert.ToString(translationLineString.Current));
+                translation += string.Format("{0}", Convert.ToString(translationLineString.Current));
             }
 
             // Remove first blank character
-            if (translation.Length > 1) { translation = translation.Substring(1); };
+            //if (translation.Length > 1) { translation = translation.Substring(1); };
 
             // Return translation
             return translation;
@@ -637,6 +676,14 @@ namespace LNG_Translator
         {
             Window about = new About();
             about.ShowDialog();
+        }
+
+        private void clearSearch_Click(object sender, RoutedEventArgs e)
+        {
+            searchTextBox.Text = "";
+            stringsView.ItemsSource = lngRows;
+            stringsView.Items.Refresh();
+            AutoSizeColumns(stringsView.View as GridView);
         }
     }
 }

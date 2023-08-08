@@ -34,12 +34,12 @@
         <ListView x:Name="stringsView" Grid.Row="3" Grid.ColumnSpan="2" Style="{StaticResource ListViewWithGridViewStyle}" BorderThickness="1">
             <ListView.View>
                 <GridView ColumnHeaderContainerStyle="{StaticResource GridViewColumnHeaderStyle}">
-                    <GridViewColumn DisplayMemberBinding="{Binding Id}" Header="Id" Width="30"/>
-                    <GridViewColumn Header="Original" Width="400" DisplayMemberBinding="{Binding OrigText}"/>
+                    <GridViewColumn DisplayMemberBinding="{Binding Id}" Header="Id" Width="60"/>
+                    <GridViewColumn x:Name="origColumns" Header="Original" Width="400" DisplayMemberBinding="{Binding OrigText}"/>
                     <GridViewColumn Header="Translate">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBox IsReadOnly="True" Text="{Binding TransText}" Width="Auto" TextChanged="TextBox_TextChanged" SelectionChanged="TextBox_SelectionChanged"/>
+                                <TextBox IsReadOnly="True" Text="{Binding TransText}" Width="Auto" TextChanged="TextBox_TextChanged" SelectionChanged="TextBox_SelectionChanged" AcceptsReturn="True"/>
                             </DataTemplate>
                         </GridViewColumn.CellTemplate>
                     </GridViewColumn>
@@ -47,6 +47,7 @@
             </ListView.View>
         </ListView>
         <TextBox x:Name="searchTextBox" Height="27" Grid.Row="1" Grid.Column="0" TextWrapping="Wrap" Text="Search..." FontSize="14" KeyDown="SearchTextBox_KeyDown"/>
+        <Button x:Name="clearSearch" Grid.Column="1" Grid.Row="1" Content="X" ToolTip="clear search" ToolTipService.InitialShowDelay="100" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="7,0,0,0" Cursor="Hand" Width="25" Click="clearSearch_Click"/>
         <Button x:Name="saveButton" Content="Save" Grid.Column="1" HorizontalAlignment="Right" Grid.Row="1" VerticalAlignment="Center" Width="75" Click="SaveButton_Click"/>
     </Grid>
 </Window>
