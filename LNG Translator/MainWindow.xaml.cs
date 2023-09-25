@@ -152,7 +152,10 @@ namespace LNG_Translator
             if (lrow == null) { return; }
             byte[] trans = Encoding.UTF8.GetBytes(this.GoogleTranslate(lrow.OrigText));
             lrow.TransText = Encoding.GetEncoding(this.curEnc).GetString(Encoding.Convert(Encoding.UTF8, Encoding.GetEncoding(this.curEnc), trans));
-            lrow.TransText = char.ToUpper(lrow.TransText[0]) + lrow.TransText.Substring(1);
+            if (lrow.TransText.Length > 1)
+            {
+                lrow.TransText = char.ToUpper(lrow.TransText[0]) + lrow.TransText.Substring(1);
+            }
             stringsView.Items.Refresh();
             stringsView.UpdateLayout();
             stringsView.ScrollIntoView(lrow);
@@ -429,6 +432,11 @@ namespace LNG_Translator
 
             // Extract just the first array element (This is the only data we are interested in)
             var translationItems = jsonData[0];
+            if (translationItems == null) 
+            {
+                System.Windows.MessageBox.Show("Can`t translate!");
+                return text; 
+            }
 
             // Translation Data
             string translation = "";
